@@ -1,0 +1,258 @@
+;
++class AI()
+	
+	+func main(turn: int): []int
+		var move: []int :: [-1, -1]
+		var virMap: [][]int :: ##\game@map
+		var point: [][]int :: #[\game@SIZE, \game@SIZE]int
+		var max: int
+		var virMove: []int :: [-1, -1]
+		var value: int
+		
+		;自分が置く
+		for X(0, \game@SIZE - 1)
+			for Y(0, \game@SIZE - 1)
+				if(@rule(X, Y, turn, virMap) & \game@judge(virMap) = 0)
+					
+					do virMap :: ##\game@map
+					do virMap[X][Y] :: turn
+					
+					do value :: 0
+					for _x(0, \game@SIZE - 1)
+						for _y(0, \game@SIZE - 1)
+							if(virMap[_x][_y] <> 0)
+								for i(0, 7)
+									do value :- @get3(_x, _y, turn * -1, virMap) * 2
+									do value :+ @get3(_x, _y, turn, virMap)
+								end for
+							end if
+						end for
+					end for
+					if(\game@judge(virMap) = turn)
+						do value :+ 100
+					end if
+					do point[X][Y] :+ value
+					
+					
+					;相手が置く
+					do max :: -1 * 10 ^ 10
+					if(\game@judge(virMap) = 0)
+						for x(0, \game@SIZE - 1)
+							for y(0, \game@SIZE - 1)
+								do value :: 0
+								if(@rule(x, y, turn * -1, virMap))
+									;置いてみる
+									do virMap[x][y] :: turn * -1
+									if(\game@judge(virMap) = turn * -1)
+										do value :- 200
+									end if
+									for _x(0, \game@SIZE - 1)
+										for _y(0, \game@SIZE - 1)
+											if(virMap[_x][_y] <> 0)
+												for i(0, 7)
+													do value :+ @get3(_x, _y, turn * -1, virMap) * 2
+													do value :- @get3(_x, _y, turn, virMap)
+												end for
+											end if
+										end for
+									end for
+									if(value > max)
+										;	do dbg@print("\{value}\n")
+										do max :: value
+										do virMove :: [x, y]
+									end if
+									;戻す
+									do virMap[x][y] :: 0
+								end if
+							end for
+						end for
+						do point[X][Y] :- max
+						do virMap[virMove[0]][virMove[1]] :: turn * -1
+					end if
+					
+					{
+					;自分が置く
+					do max :: -1 * 10 ^ 10
+					if(\game@judge(virMap) = 0)
+						for x(0, \game@SIZE - 1)
+							for y(0, \game@SIZE - 1)
+								do value :: 0
+								if(@rule(x, y, turn, virMap))
+									;置いてみる
+									do virMap[x][y] :: turn
+									
+									for _x(0, \game@SIZE - 1)
+										for _y(0, \game@SIZE - 1)
+											if(virMap[_x][_y] <> 0)
+												for i(0, 7)
+													do value :- @get3(_x, _y, turn * -1, virMap) * 2
+													do value :+ @get3(_x, _y, turn, virMap)
+												end for
+											end if
+										end for
+									end for
+									if(value > max)
+										;do dbg@print("\{value}\n")
+										do max :: value
+										do virMove :: [x, y]
+									end if
+									if(\game@judge(virMap) = turn)
+										do virMove :: [x, y]
+										break x
+									end if
+									;戻す
+									do virMap[x][y] :: 0
+								end if
+							end for
+						end for
+						do point[X][Y] :+ max
+						do virMap[virMove[0]][virMove[1]] :: turn
+					end if
+					}
+				end if
+			end for
+		end for
+		;価値最大の手を選ぶ
+		var MAX: int :: -1 * 10 ^ 10
+		for X(0, \game@SIZE - 1)
+			for Y(0, \game@SIZE - 1)
+				if(@rule(X, Y, turn, \game@map))
+					if(point[X][Y] > MAX)
+						do MAX :: point[X][Y]
+						do move :: [X, Y]
+						;	do dbg@print("\{point[X][Y]}\n")
+					end if
+				end if
+			end for
+		end for
+		
+		;do dbg@print("(\{move[0]},\{move[1]}):\{point[move[0]][move[1]]}\n")
+		
+		ret move
+	end func
+	
+end class
+
++func rule(x: int, y: int, color: int, map: [][]int): bool
+	;範囲内かどうか
+	if(!(x >= 0 & y >= 0 & x < \game@SIZE & y < \game@SIZE))
+		ret false
+	end if
+	;何もないか確認
+	if(map[x][y] <> 0)
+		ret false
+	end if
+	
+	ret true
+end func
+
+func range(x: int, y: int): bool
+	if(x >= 0 & y >= 0 & x < \game@SIZE & y < \game@SIZE)
+		ret true
+	end if
+	ret false
+end func
+
+;指定した位置から並んでいる石の数が最大の方向の先に石がないかその逆の方向に石がない場合、並んでいる石の数を返す。
+func get3(x: int, y: int, color: int, map: [][]int): int
+	;指定した位置に指定した色がなければ終わる	
+	if(map[x][y] <> color)
+		ret 0
+	end if
+	var dir: int
+	var max: int
+	for i(0, 7)
+		var n: int :: \game@get2(x, y, color, i, map)
+		if(n > max)
+			do max :: n
+			do dir :: i
+		end if
+	end for
+	if(max = 1)
+		ret 0
+	end if
+	switch(dir)
+	case 0
+		if(@range(x, y - max))
+			if(map[x][y - max] = 0)
+				ret max
+			end if
+		elif(@range(x, y + 1))
+			if(map[x][y + 1] = 0)
+				ret max
+			end if
+		end if
+	case 1
+		if(@range(x + max, y - max))
+			if(map[x + max][y - max] = 0)
+				ret max
+			end if
+		elif(@range(x - 1, y + 1))
+			if(map[x - 1][y + 1] = 0)
+				ret max
+			end if
+		end if
+	case 2
+		if(@range(x + max, y))
+			if(map[x + max][y] = 0)
+				ret max
+			end if
+		elif(@range(x - 1, y))
+			if(map[x - 1][y] = 0)
+				ret max
+			end if
+		end if
+	case 3
+		if(@range(x + max, y + max))
+			if(map[x + max][y + max] = 0)
+				ret max
+			end if
+		elif(@range(x - 1, y - 1))
+			if(map[x - 1][y - 1] = 0)
+				ret max
+			end if
+			
+		end if
+	case 4
+		if(@range(x, y + max))
+			if(map[x][y + max] = 0)
+				ret max
+			end if
+		elif(@range(x, y - 1))
+			if(map[x][y - 1] = 0)
+				ret max
+			end if
+		end if
+	case 5
+		if(@range(x - max, y + max))
+			if(map[x - max][y + max] = 0)
+				ret max
+			end if
+		elif(@range(x + 1, y - 1))
+			if(map[x + 1][y - 1] = 0)
+				ret max
+			end if
+		end if
+	case 6
+		if(@range(x - max, y))
+			if(map[x - max][y] = 0)
+				ret max
+			end if
+		elif(@range(x + 1, y))
+			if(map[x + 1][y] = 0)
+				ret max
+			end if
+		end if
+	case 7
+		if(@range(x - max, y - max))
+			if(map[x - max][y - max] = 0)
+				ret max
+			end if
+		elif(@range(x + 1, y + 1))
+			if(map[x + 1][y + 1] = 0)
+				ret max
+			end if
+		end if
+	end switch
+	ret 0
+end func

@@ -1,0 +1,481 @@
++var map: [][]int
++const SIZE: int :: 10
++var count: int
++var Traincount: int
++var Readcount: int
++class Game()
+	var Bwin: int
+	var Wwin: int
+	var DRAW: int
+	var turn: int
+	var control: \control@Control
+	var PassF: bool
+	;両者とも置けない場合があるのでそのフラグ
+	var BothPass: bool
+	var endF: int
+	*func ctor()
+		do me.control :: #\control@Control
+		do @map :: #[@SIZE, @SIZE]int
+		;1が黒、-1が白
+		
+		;黒が最初
+		do me.turn :: 1
+	end func
+	
+	+func main()
+		while(wnd@act())
+			if(@Traincount <= @count)
+				do me.draw()
+			end if
+			do me.take()
+			do me.init()
+		end while
+	end func
+	
+	+func draw()
+		var Wcount: int
+		var Bcount: int
+		var width: float :: \main@WIDTH / @SIZE $ float
+		var height: float :: \main@HEIGHT / @SIZE $ float
+		;背景
+		do draw2d@rect(0.0, 0.0, \main@WIDTH, \main@HEIGHT, 0xFFC68E46)
+		do draw2d@rect(\main@WIDTH, 0.0, \main@WIDTH + 300.0, \main@HEIGHT, 0xFFFFFFFF)
+		if(me.PassF & me.endF = 0)
+			do \main@font.draw(\main@WIDTH + 10.0, 80.0, "置ける場所がありません", 0xFF000000)
+			if(\control@WAIT = 1)
+				do lib@sleep(1000)
+			end if
+		end if
+		;文字
+		do \main@font.draw(\main@WIDTH + 10.0, 30.0, "\{me.turn = 1 ?("黒", "白")}のターンです", 0xFF000000)
+		
+		for x(0, @SIZE - 1)
+			for y(0, @SIZE - 1)
+				do draw2d@line(x $ float * width, 0.0, x $ float * width, \main@HEIGHT, 1.0, 0xFF000000)
+				do draw2d@line(0.0, y $ float * height, \main@WIDTH, y $ float * height, 1.0, 0xFF000000)
+				switch(@map[x][y])
+				case 1
+					;黒
+					do Bcount :+ 1
+					do draw2d@circle((x $ float + 1.0 / 2.0) * width, (y $ float + 1.0 / 2.0) * height, height / 2.0, height / 2.0, 0xFF000000)
+				case -1
+					;白
+					do Wcount :+ 1
+					do draw2d@circle((x $ float + 1.0 / 2.0) * width, (y $ float + 1.0 / 2.0) * height, height / 2.0, height / 2.0, 0xFFFFFFFF)
+				end switch
+			end for
+		end for
+		;文字
+		do \main@font.draw(\main@WIDTH + 10.0, 130.0, "黒の石の数:\{Bcount}", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 180.0, "白の石の数:\{Wcount}", 0xFF000000)
+		if(me.endF <> 0)
+			do \main@font.draw(\main@WIDTH + 10.0, 230.0, Bcount > Wcount ?("黒の勝利です", "白の勝利です"), 0xFF000000)
+		end if
+		do \main@font.draw(\main@WIDTH + 10.0, 280.0, "黒の勝利数:\{me.Bwin}", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 330.0, "白の勝利数:\{me.Wwin}", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 380.0, "引き分けの数:\{me.DRAW}", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 430.0, "黒の勝率:\{me.Bwin $ float / (@count = 0 ?(1.0, @count $ float)) * 100.0}%", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 480.0, "白の勝率:\{me.Wwin $ float / (@count = 0 ?(1.0, @count $ float)) * 100.0}%", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 530.0, "黒:\{\control@FB = 0 ?("人間", "AI\{\control@FB}")}", 0xFF000000)
+		do \main@font.draw(\main@WIDTH + 10.0, 580.0, "白:\{\control@FW = 0 ?("人間", "AI\{\control@FW}")}", 0xFF000000)
+		
+		
+		do draw@render(60)
+		
+	end func
+	
+	+func start()
+		do me.control.start()
+	end func
+	
+	+func fin()
+		;記録保存
+		do me.save("log")
+		;途中データ削除
+		do file@delFile("now_data.txt")
+	end func
+	
+	+func init()
+		;初期化
+		if(me.endF <> 0)
+			;途中経過保存
+			var tempdata: []char :: "\{@count} B:W=\{me.Bwin}:\{me.Wwin}=\{me.Bwin $ float / (@count = 0 ?(1.0, @count $ float)) * 100.0}%:\{me.Wwin $ float / (@count = 0 ?(1.0, @count $ float)) * 100.0}% D:\{me.DRAW}\n"
+			do \main@logtxt :~ tempdata
+			
+			var h: file@Writer :: file@makeWriter("now_data.txt", true)
+			do h.writeStr(tempdata)
+			do h.fin()
+			
+			do dbg@print("\{@count} \{(me.Wwin * 100) / (@count = 0 ?(1, @count))}%\n")
+			;AIの初期化処理
+			do me.control.init(me.turn, me.endF)
+			;初期化
+			if(\control@WAIT = 1)
+				do lib@sleep(1000)
+			end if
+			for x(0, @SIZE - 1)
+				for y(0, @SIZE - 1)
+					do @map[x][y] :: 0
+				end for
+			end for
+			
+			do me.turn :: 1
+			do me.PassF :: false
+			do me.endF :: 0
+			do me.BothPass :: false
+			
+		end if
+		
+		var WinF: int
+		;勝敗確認
+		for x(0, @SIZE - 1)
+			for y(0, @SIZE - 1)
+				;黒が5つ並んでいるか
+				for i(0, 7)
+					if(@get2(x, y, 1, i, @map) = 5)
+						do WinF :: 1
+						break x
+					end if
+					;白が5つ並んでいるか
+					if(@get2(x, y, -1, i, @map) = 5)
+						do WinF :: -1
+						break x
+					end if
+				end for
+			end for
+		end for
+		;終了時
+		if(WinF <> 0 | me.BothPass)
+			do @count :+ 1
+			if(WinF = -1)
+				do me.Wwin :+ 1
+				do me.endF :: -1
+			elif(WinF = 1)
+				do me.Bwin :+ 1
+				do me.endF :: 1
+			else
+				do me.DRAW :+ 1
+				;引き分けは2とする！！！
+				do me.endF :: 2
+			end if
+			
+		end if
+		
+		
+	end func
+	
+	+func take()
+		;まだおける場所があるかどうか
+		var ableMe: int
+		var ableYou: int
+		for x(0, @SIZE - 1)
+			for y(0, @SIZE - 1)
+				if(@rule(x, y, me.turn))
+					do ableMe :+ 1
+				end if
+				if(@rule(x, y, me.turn * -1))
+					do ableYou :+ 1
+				end if
+			end for
+		end for
+		;どちらも置けなかったら
+		if(ableMe = 0 & ableYou = 0)
+			do me.BothPass :: true
+		end if
+		
+		;まだおける場所があるなら
+		if(ableMe <> 0)
+			do me.PassF :: false
+			var move: []int :: [-1, -1]
+			;石を打つ位置を入手
+			do move :: me.control.main(me.turn)
+			if(@rule(move[0], move[1], me.turn))
+				;石を置く
+				do @map[move[0]][move[1]] :: me.turn
+				do me.turn :* -1
+				;do dbg@print("\{move[0]},\{move[1]}\n")
+			end if
+		else
+			do me.PassF :: true
+			if(me.PassF & me.endF = 0)
+				do me.turn :* -1
+			end if
+		end if
+		
+	end func
+	
+	;結果をテキストファイルに保存する
+	+func save(filename: []char)
+		var handle: file@Writer :: file@makeWriter("\{filename}.txt", false)
+		do handle.writeStr(\main@logtxt) {文字列を書き込む}
+		do handle.fin()
+	end func
+	
+	
+end class
+
+;AIからアクセスできるようにクラス外に置いた
++func rule(x: int, y: int, color: int): bool
+	;範囲内かどうか
+	if(!(x >= 0 & y >= 0 & x < @SIZE & y < @SIZE))
+		ret false
+	end if
+	;何もないか確認
+	if(@map[x][y] <> 0)
+		ret false
+	end if
+	
+	ret true
+end func
+
+;各方向にある自分の石の数を返す
++func get(x: int, y: int, color: int, way: int, map: [][]int): int
+	;時計回り。上から
+	switch(way)
+	case 0
+		;上を探索
+		if(y = 0)
+			;上にマスがない場合
+			ret 0
+		end if
+		var count_u: int
+		for i(y - 1, 0, -1)
+			if(map[x][i] = color)
+				;	自分の石があったとき
+				do count_u :+ 1
+			else
+				;自分の石がなかったら
+				break i
+			end if
+		end for
+		ret count_u
+	case 1
+		;右上を探索
+		var max_ru: int :: @SIZE - 1 - x < y ?(@SIZE - 1 - x, y)
+		var count_ru: int
+		for i(1, max_ru)
+			if(map[x + i][y - i] = color)
+				do count_ru :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_ru
+	case 2
+		;右を探索
+		if(x = @SIZE - 1)
+			ret 0
+		end if
+		var count_r: int
+		for i(x + 1, @SIZE - 1)
+			if(map[i][y] = color)
+				do count_r :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_r
+	case 3
+		;右下を探索
+		var max_rd: int :: @SIZE - 1 - x < @SIZE - 1 - y ?(@SIZE - 1 - x, @SIZE - 1 - y)
+		var count_rd: int
+		for i(1, max_rd)
+			if(map[x + i][y + i] = color)
+				do count_rd :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_rd
+	case 4
+		;下を探索
+		if(y = @SIZE - 1)
+			ret 0
+		end if
+		var count_d: int
+		for i(y + 1, @SIZE - 1)
+			if(map[x][i] = color)
+				do count_d :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_d
+	case 5
+		;左下を探索
+		var max_ld: int :: x < @SIZE - 1 - y ?(x, @SIZE - 1 - y)
+		var count_ld: int
+		for i(1, max_ld)
+			if(map[x - i][y + i] = color)
+				do count_ld :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_ld
+	case 6
+		;左を探索
+		if(x = 0)
+			ret 0
+		end if
+		var count_l: int
+		for i(x - 1, 0, -1)
+			if(map[i][y] = color)
+				do count_l :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_l
+	case 7
+		;左上を探索
+		var max_lu: int :: x < y ?(x, y)
+		var count_lu: int
+		for i(1, max_lu)
+			if(map[x - i][y - i] = color)
+				do count_lu :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_lu
+	end switch
+end func
+
+;(x,y)の石も含めた数を返す
++func get2(x: int, y: int, color: int, way: int, map: [][]int): int
+	;時計回り。上から
+	switch(way)
+	case 0
+		;上を探索
+		var count_u: int
+		for i(y, 0, -1)
+			if(map[x][i] = color)
+				;	自分の石があったとき
+				do count_u :+ 1
+			else
+				;自分の石がなかったら
+				break i
+			end if
+		end for
+		ret count_u
+	case 1
+		;右上を探索
+		var max_ru: int :: @SIZE - 1 - x < y ?(@SIZE - 1 - x, y)
+		var count_ru: int
+		for i(0, max_ru)
+			if(map[x + i][y - i] = color)
+				do count_ru :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_ru
+	case 2
+		;右を探索
+		var count_r: int
+		for i(x, @SIZE - 1)
+			if(map[i][y] = color)
+				do count_r :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_r
+	case 3
+		;右下を探索
+		var max_rd: int :: @SIZE - 1 - x < @SIZE - 1 - y ?(@SIZE - 1 - x, @SIZE - 1 - y)
+		var count_rd: int
+		for i(0, max_rd)
+			if(map[x + i][y + i] = color)
+				do count_rd :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_rd
+	case 4
+		;下を探索
+		var count_d: int
+		for i(y, @SIZE - 1)
+			if(map[x][i] = color)
+				do count_d :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_d
+	case 5
+		;左下を探索
+		var max_ld: int :: x < @SIZE - 1 - y ?(x, @SIZE - 1 - y)
+		var count_ld: int
+		for i(0, max_ld)
+			if(map[x - i][y + i] = color)
+				do count_ld :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_ld
+	case 6
+		;左を探索
+		var count_l: int
+		for i(x, 0, -1)
+			if(map[i][y] = color)
+				do count_l :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_l
+	case 7
+		;左上を探索
+		var max_lu: int :: x < y ?(x, y)
+		var count_lu: int
+		for i(0, max_lu)
+			if(map[x - i][y - i] = color)
+				do count_lu :+ 1
+			else
+				break i
+			end if
+		end for
+		ret count_lu
+	end switch
+end func
+
+
+;仮想マップでの勝敗判定
++func judge(map: [][]int): int
+	var WinF: int
+	var ableB: int
+	var ableW: int
+	;勝敗確認
+	for x(0, @SIZE - 1)
+		for y(0, @SIZE - 1)
+			;黒が5つ並んでいるか
+			for i(0, 7)
+				if(@get2(x, y, 1, i, map) = 5)
+					do WinF :: 1
+					break x
+				end if
+				;白が5つ並んでいるか
+				if(@get2(x, y, -1, i, map) = 5)
+					do WinF :: -1
+					break x
+				end if
+				;置ける場所があるか
+				if(@rule(x, y, 1))
+					do ableB :+ 1
+				end if
+				if(@rule(x, y, -1))
+					do ableW :+ 1
+				end if
+			end for
+		end for
+	end for
+	
+	if(ableW = 0 & ableB = 0)
+		do WinF :: 2
+	end if
+	ret WinF
+end func

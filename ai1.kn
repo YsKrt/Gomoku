@@ -1,0 +1,50 @@
+;相手に並べさせない
++class AI()
+	
+	+func main(turn: int): []int
+		var move: []int :: [-1, -1]
+		var maxlist: [][]int :: #[\game@SIZE, \game@SIZE]int
+		var pre5: []int :: [-1, -1]
+		;置ける場所で相手の石が一番多く連続しているところを探す
+		for x(0, \game@SIZE - 1)
+			for y(0, \game@SIZE - 1)
+				if(\game@rule(x, y, turn))
+					var num: int :: 0
+					for i(0, 7)
+						if(\game@get(x, y, turn * -1, i, \game@map) > num)
+							do num :: \game@get(x, y, turn * -1, i, \game@map)
+						end if
+						if(\game@get(x, y, turn, i, \game@map) = 4)
+							do pre5 :: [x, y]
+						end if
+					end for
+					do maxlist[x][y] :: num
+				end if
+			end for
+		end for
+		;最大のものを選ぶ
+		var count: int
+		var max: int
+		for x(0, \game@SIZE - 1)
+			for y(0, \game@SIZE - 1)
+				if(\game@rule(x, y, turn))
+					do count :+ 1
+					if(max < maxlist[x][y] | count = 1)
+						do max :: maxlist[x][y]
+						do move :: [x, y]
+					end if
+					;勝てるときは勝つ
+					if(x = pre5[0] & y = pre5[1])
+						do move :: [x, y]
+						break x
+					end if
+				end if
+				
+			end for
+		end for
+		ret move
+	end func
+	
+	
+	
+end class

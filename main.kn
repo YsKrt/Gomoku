@@ -1,0 +1,38 @@
++var wndMain: wnd@Wnd
++var drawMain: wnd@Draw
++const WIDTH: float :: 900.0
++const HEIGHT: float :: 900.0
++var font: draw@Font
++var logtxt: []char
++var start_time: int
+func main()
+	
+	var result: []char
+	do result :: wndex@inputBox(null, "学習回数, 読み込む回数,黒, 白,待つ", "Gomoku", "0,0,0,0,0", null)
+	if(result =& null)
+		ret
+	end if
+	var data: [][]char :: result.split(",")
+	var existed: bool
+	
+	do @wndMain :: wnd@makeWnd(null, %aspect, @WIDTH $ int + 300, @HEIGHT $ int, "Gomoku")
+	do @drawMain :: wnd@makeDraw(@wndMain, 0, 0, @WIDTH $ int + 300, @HEIGHT $ int, %scale, %scale, false)
+	do @font :: draw@makeFont("Meiryo UI", 15, false, false, true, 0.0)
+	do @start_time :: lib@sysTime()
+	do @logtxt :: ""
+	var game: \game@Game :: #\game@Game
+	
+	do dbg@print("入力値:\{data[0].toInt(&existed)},\{data[1].toInt(&existed)},\{data[2].toInt(&existed)},\{data[3].toInt(&existed)},\{data[4].toInt(&existed)}\n")
+	do @logtxt :~ "入力値:\{data[0].toInt(&existed)},\{data[1].toInt(&existed)},\{data[2].toInt(&existed)},\{data[3].toInt(&existed)},\{data[4].toInt(&existed)}\n"
+	
+	do \game@Traincount :: data[0].toInt(&existed)
+	do \game@Readcount :: data[1].toInt(&existed)
+	do \control@FB :: data[2].toInt(&existed)
+	do \control@FW :: data[3].toInt(&existed)
+	do \control@WAIT :: data[4].toInt(&existed)
+	
+	do game.start()
+	do game.main()
+	do game.fin()
+	
+end func

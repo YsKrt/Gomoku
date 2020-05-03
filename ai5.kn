@@ -1,0 +1,112 @@
+;山田のAI
+const depth: int :: 0
+var copyMap: [][]int
+var backupMap: [][]int
+var eval: [][]int
++class AI()
+	var turn: int
+	*func ctor()
+		do @eval :: [
+		|[-10, -9, -8, -7, -6, -6, -7, -8, -9, -10],
+		|[-9, -8, -7, -6, -5, -5, -6, -7, -8, -9],
+		|[-8, -7, -6, -5, -4, -4, -5, -6, -7, -8],
+		|[-7, -6, -5, -4, -3, -3, -4, -5, -6, -7],
+		|[-7, -5, -4, -3, -2, -2, -3, -4, -5, -6],
+		|[-7, -5, -4, -3, -2, -2, -3, -4, -5, -6],
+		|[-7, -6, -5, -4, -3, -3, -4, -5, -6, -7],
+		|[-8, -7, -6, -5, -4, -4, -5, -6, -7, -8],
+		|[-9, -8, -7, -6, -5, -5, -6, -7, -8, -9],
+		|[-10, -9, -8, -7, -6, -6, -7, -8, -9, -10]
+		|]
+		for i(0, 9)
+			for j(0, 9)
+				do @eval[i][j] :+ 11
+			end for
+		end for
+	end func
+	;turnは自分の石の色を表す。黒が1、白が-1でturnには1か―1が入っている。
+	+func main(turn: int): []int
+		do me.turn :: turn
+		;moveは次に打つ座標。初期値は(-1,-1)にしてある。
+		var move: []int :: [-1, -1]
+		do @copyMap :: ##\game@map
+		do @backupMap :: ##\game@map
+		
+		;↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓コードを書くところ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+		
+		;盤面の情報は\game@mapの二次元配列に入っている。
+		;黒が1,白が-1、何もない場合は0が入っている
+		;けれど値を変えてしまわないように@get_map(x,y)でmapの中身を入手できるようにした
+		
+		;例）座標(1,6)のマップの中身を得る
+		;var a: int :: @get_map(1, 6)
+		var eval: int
+		var max: int
+		
+		;探索の例を以下に示した
+		;\game@SIZEが盤面の一辺のマスの数。マスはx,yそれぞれに0~\game@SIZE-1の数が割り当てられている。
+		var point: int :: me.minimax(0, me.turn)
+		do move :: [point / 5, point % 5]
+		;↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+		
+		ret move
+		
+	end func
+	
+	func minimax(limit: int, turn: int): int
+		
+		if(\game@judge(@copyMap) <> 0)
+			ret @getEval(turn, limit)
+		end if
+		var value: int
+		var best_value: int :: 0
+		do value :: (me.turn = turn) ?(10000, -10000)
+		var child_value: int
+		
+		for i(0, 24)
+			if(@copyMap[i / 5][i % 5] = 0)
+				do @backupMap :: ##@copyMap
+				do @copyMap[i / 5][i % 5] :: turn
+				do child_value :: me.minimax(limit + 1, turn * -1)
+				if(me.turn = turn)
+					if(child_value > value)
+						do value :: child_value
+						do best_value :: i
+					end if
+				else
+					if(child_value < value)
+						do value :: child_value
+						do best_value :: i
+					end if
+				end if
+				do @copyMap :: ##@backupMap
+			end if
+		end for
+		if(limit = 0)
+			ret best_value
+		else
+			ret value
+		end if
+	end func
+end class
+func getEval(turn: int, limit: int): int
+	if(\game@judge(@copyMap) = turn)
+		ret 10 - (@depth - limit)
+	elif(\game@judge(@copyMap) = turn * -1)
+		ret(@depth - limit) - 10
+	else
+		ret 0
+	end if
+end func
+class Point()
+	+var x: int
+	+var y: int
+	+var p: int
+end class
+func makePoint(x: int, y: int, po: int): @Point
+	var p: @Point :: #@Point
+	do p.x :: x
+	do p.y :: y
+	do p.p :: po
+	ret p
+end func
