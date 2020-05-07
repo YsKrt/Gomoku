@@ -444,38 +444,3 @@ end func
 end func
 
 
-;仮想マップでの勝敗判定
-+func judge(map: [][]int): int
-	var WinF: int
-	var ableB: int
-	var ableW: int
-	;勝敗確認
-	for x(0, @SIZE - 1)
-		for y(0, @SIZE - 1)
-			;黒が5つ並んでいるか
-			for i(0, 7)
-				if(@get2(x, y, 1, i, map) = 5)
-					do WinF :: 1
-					break x
-				end if
-				;白が5つ並んでいるか
-				if(@get2(x, y, -1, i, map) = 5)
-					do WinF :: -1
-					break x
-				end if
-				;置ける場所があるか
-				if(@rule(x, y, 1))
-					do ableB :+ 1
-				end if
-				if(@rule(x, y, -1))
-					do ableW :+ 1
-				end if
-			end for
-		end for
-	end for
-	
-	if(ableW = 0 & ableB = 0)
-		do WinF :: 2
-	end if
-	ret WinF
-end func

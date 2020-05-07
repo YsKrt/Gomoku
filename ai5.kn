@@ -55,9 +55,10 @@ var eval: [][]int
 	
 	func minimax(limit: int, turn: int): int
 		
-		if(\game@judge(@copyMap) <> 0)
+		if(@judge(@copyMap, turn) <> 0)
 			ret @getEval(turn, limit)
 		end if
+		
 		var value: int
 		var best_value: int :: 0
 		do value :: (me.turn = turn) ?(10000, -10000)
@@ -90,9 +91,9 @@ var eval: [][]int
 	end func
 end class
 func getEval(turn: int, limit: int): int
-	if(\game@judge(@copyMap) = turn)
+	if(@judge(@copyMap, turn) = turn)
 		ret 10 - (@depth - limit)
-	elif(\game@judge(@copyMap) = turn * -1)
+	elif(@judge(@copyMap, turn) = turn * -1)
 		ret(@depth - limit) - 10
 	else
 		ret 0
@@ -110,3 +111,133 @@ func makePoint(x: int, y: int, po: int): @Point
 	do p.p :: po
 	ret p
 end func
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;AIからアクセスできるようにクラス外に置いた
++func rule(x: int, y: int, color: int, map: [][]int): bool
+	;範囲内かどうか
+	if(!(x >= 0 & y >= 0 & x < \game@SIZE & y < \game@SIZE))
+		ret false
+	end if
+	;何もないか確認
+	if(map[x][y] <> 0)
+		ret false
+	end if
+	
+	ret true
+end func
+
+func search(x: int, y: int, turn: int, way: int, wayCount: int, map: [][]int): bool
+	switch(way)
+	case 0
+		if(@rule(x, y - wayCount, turn, map))
+			if(map[x][y - wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 1
+		if(@rule(x + wayCount, y - wayCount, turn, map))
+			if(map[x + wayCount][y - wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 2
+		if(@rule(x + wayCount, y, turn, map))
+			if(map[x + wayCount][y] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 3
+		if(@rule(x + wayCount, y + wayCount, turn, map))
+			if(map[x + wayCount][y + wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 4
+		if(@rule(x, y + wayCount, turn, map))
+			if(map[x][y + wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 5
+		if(@rule(x - wayCount, y + wayCount, turn, map))
+			if(map[x - wayCount][y + wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 6
+		if(@rule(x - wayCount, y, turn, map))
+			if(map[x - wayCount][y] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	case 7
+		if(@rule(x - wayCount, y - wayCount, turn, map))
+			if(map[x - wayCount][y - wayCount] = turn)
+				ret true
+			end if
+		end if
+		ret false
+	end switch
+end func
+
+
+;仮想マップでの勝敗判定
+;5つ並んでいなくても勝敗が決まっている状態がある。それも含めるとする。
++func judge(map: [][]int, turn: int): int
+	var WinF: int
+	var ableMe: int
+	var ableYou: int
+	;勝敗確認
+	for x(0, \game@SIZE - 1)
+		for y(0, \game@SIZE - 1)
+			for i(0, 7)
+				if(map[x][y] <> 0)
+					;自分の石が4つ並んでいるか
+					if(\game@get2(x, y, turn, i, map) = 4 & !@search(x, y, turn * -1, i, 4, map) & !@search(x, y, turn * -1, (i + 4) % 8, 1, map))
+						do WinF :: turn * 2
+					end if
+					;相手の石が4つ並んでいるか
+					if(\game@get2(x, y, turn * -1, i, map) = 4 & !@search(x, y, turn, i, 4, map) & !@search(x, y, turn, (i + 4) % 8, 1, map))
+						do WinF :: turn * -2
+					end if
+					;自分の石が5つ並んでいるか
+					if(\game@get2(x, y, turn, i, map) = 5)
+						do WinF :: turn
+						break x
+					end if
+					;相手の石が5つ並んでいるか
+					if(\game@get2(x, y, turn * -1, i, map) = 5)
+						do WinF :: turn * -1
+						break x
+					end if
+				end if
+			end for
+			;置ける場所があるか
+			if(@rule(x, y, turn, map))
+				do ableMe :+ 1
+			end if
+			if(@rule(x, y, turn * -1, map))
+				do ableYou :+ 1
+			end if
+			
+		end for
+	end for
+	
+	if(ableMe = 0 & ableYou = 0 & WinF = 0)
+		do WinF :: 3
+	end if
+	ret WinF
+end func
+
+
+
